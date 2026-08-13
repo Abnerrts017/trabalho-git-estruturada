@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090d16" />
+  <title>AcademicHub - IF Goiano</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <style>
+    .fc {
+      --fc-border-color: #334155;
+      --fc-page-bg-color: #0f172a;
+      --fc-neutral-bg-color: #1e293b;
+      --fc-list-event-hover-bg-color: #334155;
+      color: #f8fafc;
+    }
+    .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 600; }
+    .fc .fc-button-primary { background-color: #059669; border-color: #059669; }
+    .fc .fc-button-primary:hover { background-color: #047857; border-color: #047857; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased font-sans">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- CONFIGURAÇÃO DO SUPABASE ---
+    const SUPABASE_URL = "https://jnkonklwmaseeylebhdt.supabase.co/rest/v1/"; 
+    const SUPABASE_KEY = "sb_publishable_lQ1jnvO5jio3YqNRNDUkuw_a33pg5s7"; 
+    const SENHA_REPRESENTANTE = "info2026"; // Senha dos representantes
+
+    const supabaseClient = (SUPABASE_KEY && !SUPABASE_KEY.includes("COLE_AQUI")) 
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
+      : null;
+
+    function App() {
+      const [eventos, setEventos] = useState([]);
+      const [aba, setAba] = useState('dashboard');
+      const [isEditor, setIsEditor] = useState(false);
+      
+      const [titulo, setTitulo] = useState('');
+      const [tipo, setTipo] = useState('prova');
+      const [dataHora, setDataHora] = useState('');
+      const calendarRef = useRef(null);
+
+      // Carregar eventos do Banco de Dados
+      const carregarEventos = async () => {
+        if (!supabaseClient) return;
+        try {
+          const { data, error } = await supabaseClient.from('provas').select('*');
+          if (data) {
+            const formatados = data.map(item => ({
+              id: String(item.id),
+              title: `[${item.tipo.toUpperCase()}] ${item.title}`,
+              start: item.start,
+              color: item.tipo === 'prova' ? '#dc2626' : item.tipo === 'dever' ? '#d97706' : '#2563eb',
+              tipo: item.tipo,
+              nomeOriginal: item.title
+            }));
+            setEventos(formatados);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar dados:", err);
+        }
+      };
+
+      useEffect(() => {
+        carregarEventos();
+      }, []);
+
+      // Renderizar Calendário
+      useEffect(() => {
+        if (aba === 'calendario' && calendarRef.current) {
+          const calendar = new FullCalendar.Calendar(calendarRef.current, {
+            initialView: 'dayGridMonth',
+            locale: 'pt-br',
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+            events: eventos,
+            height: '75vh'
+          });
+          calendar.render();
+        }
+      }, [aba, eventos]);
+
+      // Ativar modo editor com senha
+      const autenticarRepresentante = () => {
+        if (isEditor) {
+          setIsEditor(false);
+          alert("Modo Editor desativado.");
+          return;
+        }
+        const senhaDigitada = prompt("Digite a senha de Representante:");
+        if (senhaDigitada === SENHA_REPRESENTANTE) {
+          setIsEditor(true);
+          alert("Acesso concedido! Agora você pode adicionar ou excluir itens.");
+        } else if (senhaDigitada !== null) {
+          alert("Senha incorreta!");
+        }
+      };
+
+      // Criar Evento no Servidor
+      const criarEvento = async (e) => {
+        e.preventDefault();
+        if (!titulo || !dataHora) return;
+
+        if (!supabaseClient) {
+          alert("A chave Publishable do Supabase não foi configurada no index.html!");
+          return;
+        }
+
+        const { error } = await supabaseClient.from('provas').insert([
+          { title: titulo, tipo: tipo, start: dataHora }
+        ]);
+
+        if (error) {
+          alert("Erro ao salvar no servidor: " + error.message);
+        } else {
+          alert("Evento publicado para toda a turma com sucesso!");
+          setTitulo('');
+          setDataHora('');
+          carregarEventos();
+        }
+      };
+
+      // Deletar Evento no Servidor
+      const deletarEvento = async (id) => {
+        if (!confirm("Tem certeza que deseja apagar este item para toda a turma?")) return;
+        if (!supabaseClient) return;
+
+        const { error } = await supabaseClient.from('provas').delete().eq('id', id);
+        if (!error) {
+          carregarEventos();
+        } else {
+          alert("Erro ao excluir item.");
+        }
+      };
+
+      return (
+        <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
+          
+          {/* Sidebar Lateral */}
+          <aside className="w-full md:w-64 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 p-6 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-emerald-900/40">
+                  IF
+                </div>
+                <div>
+                  <h1 className="font-bold text-lg tracking-wide text-white">AcademicHub</h1>
+                  <span className="text-xs text-slate-400">2º Téc. Informática</span>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
+                <button 
+                  onClick={() => setAba('dashboard')}
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${
+                    aba === 'dashboard' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800'
+                  }`}>
+                  📖 Painel Principal
+                </button>
+
+                <button 
+                  onClick={() => setAba('grade')}
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${
+                    aba === 'grade' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800'
+                  }`}>
+                  📊 Grade Horária
+                </button>
+                
+                <button 
+                  onClick={() => setAba('calendario')}
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${
+                    aba === 'calendario' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800'
+                  }`}>
+                  📅 Calendário
+                </button>
+              </nav>
+            </div>
+
+            {/* Botão de Acesso do Representante */}
+            <div className="mt-6 md:mt-0 space-y-3">
+              <button 
+                onClick={autenticarRepresentante}
+                className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition ${
+                  isEditor 
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30' 
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                }`}>
+                {isEditor ? "🔓 Modo Editor (Ativo)" : "🔒 Acesso Representante"}
+              </button>
+
+              <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-xs text-slate-400 text-center">
+                {isEditor ? "Permissão para alterar liberada" : "Visão de Aluno (Apenas Leitura)"}
+              </div>
+            </div>
+          </aside>
+
+          {/* Conteúdo Principal */}
+          <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+            
+            {/* ABA: DASHBOARD */}
+            {aba === 'dashboard' && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <header>
+                  <h2 className="text-2xl font-bold text-white">Mural de Atividades da Turma</h2>
+                  <p className="text-slate-400 text-sm">Provas e trabalhos mantidos pelos representantes do 2º Téc. Informática.</p>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  
+                  {/* Formulário (Só para Representantes) */}
+                  {isEditor ? (
+                    <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl relative">
+                      <div className="absolute -top-3 right-4 bg-amber-500 text-slate-950 font-bold text-[10px] uppercase px-2 py-0.5 rounded-md">
+                        Painel Representante
+                      </div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                        ➕ Publicar para a Turma
+                      </h3>
+                      <form onSubmit={criarEvento} className="space-y-4">
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Título</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: Prova de POO - Renato" 
+                            value={titulo}
+                            onChange={(e) => setTitulo(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Categoria</label>
+                          <select 
+                            value={tipo}
+                            onChange={(e) => setTipo(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
+                            <option value="prova">Prova</option>
+                            <option value="dever">Entrega de Trabalho</option>
+                            <option value="estudo">Aviso Importante</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Data e Horário</label>
+                          <input 
+                            type="datetime-local" 
+                            value={dataHora}
+                            onChange={(e) => setDataHora(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium p-3 rounded-xl shadow-lg shadow-emerald-900/30 transition">
+                          Publicar para Todos
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 mb-3 text-xl">
+                        🛡️
+                      </div>
+                      <h3 className="font-semibold text-slate-200 mb-1">Apenas Leitura</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Apenas os representantes de turma cadastram novas avaliações e datas de entregas neste mural.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Lista de Atividades */}
+                  <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                      ⏰ Próximas Avaliações & Trabalhos
+                    </h3>
+
+                    {eventos.length === 0 ? (
+                      <p className="text-slate-500 text-sm py-8 text-center">Nenhum evento registrado no momento.</p>
+                    ) : (
+                      <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+                        {eventos.map((item) => (
+                          <div key={item.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 flex justify-between items-center hover:border-slate-600 transition">
+                            <div>
+                              <h4 className="font-semibold text-slate-200">{item.nomeOriginal || item.title}</h4>
+                              <span className="text-xs text-slate-400">
+                                Data: {new Date(item.start).toLocaleString('pt-BR')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                item.tipo === 'prova' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                item.tipo === 'dever' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                              }`}>
+                                {(item.tipo || 'item').toUpperCase()}
+                              </span>
+                              
+                              {isEditor && (
+                                <button 
+                                  onClick={() => deletarEvento(item.id)}
+                                  className="text-slate-500 hover:text-red-400 p-1 transition"
+                                  title="Excluir Item">
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* ABA: GRADE HORÁRIA */}
+            {aba === 'grade' && (
+              <div className="max-w-6xl mx-auto space-y-6">
+                <header className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Grade Horária Semanal</h2>
+                    <p className="text-slate-400 text-sm">2º ano Téc. Informática - IF Goiano</p>
+                  </div>
+                  <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-3 py-1.5 rounded-full font-semibold">
+                    URÂNIA+
+                  </span>
+                </header>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs md:text-sm">
+                      <thead>
+                        <tr className="bg-slate-800/80 text-slate-300 border-b border-slate-700">
+                          <th className="p-4 border-r border-slate-700/50 w-24">Turno</th>
+                          <th className="p-4 border-r border-slate-700/50 w-20">Horário</th>
+                          <th className="p-4 border-r border-slate-700/50 font-semibold text-emerald-400">Seg</th>
+                          <th className="p-4 border-r border-slate-700/50 font-semibold text-emerald-400">Ter</th>
+                          <th className="p-4 border-r border-slate-700/50 font-semibold text-emerald-400">Qua</th>
+                          <th className="p-4 border-r border-slate-700/50 font-semibold text-emerald-400">Qui</th>
+                          <th className="p-4 font-semibold text-emerald-400">Sex</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-slate-200">
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td rowSpan="4" className="p-4 font-bold border-r border-slate-800 bg-slate-900/50 text-slate-400 text-center uppercase">
+                            Matutino
+                          </td>
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">08:00</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>ELETRÔNICA BÁSICA</strong><br/><span className="text-slate-400 text-xs">André Wild</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>FILOSOFIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Flávio Oliveira</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>SOCIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Maria Otavia</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3"><strong>DESENVOLVIMENTO WEB II</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">09:00</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>ELETRÔNICA BÁSICA</strong><br/><span className="text-slate-400 text-xs">André Wild</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>FILOSOFIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Flávio Oliveira</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>EDUCAÇÃO FÍSICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Thalita Cintra</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>Paradigma Orientação Objeto</strong><br/><span className="text-slate-400 text-xs">Renato</span></td>
+                          <td className="p-3"><strong>DESENVOLVIMENTO WEB II</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">10:20</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>GEOGRAFIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Laise Cabral</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>QUÍMICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Gustavo</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>Paradigma Orientação Objeto</strong><br/><span className="text-slate-400 text-xs">Renato</span></td>
+                          <td className="p-3"><strong>BIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Karine Dias</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">11:20</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>QUÍMICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Gustavo</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3"><strong>BIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Karine Dias</span></td>
+                        </tr>
+
+                        <tr className="border-t-2 border-slate-700 hover:bg-slate-800/30 transition">
+                          <td rowSpan="4" className="p-4 font-bold border-r border-slate-800 bg-slate-900/50 text-slate-400 text-center uppercase">
+                            Vespertino
+                          </td>
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">13:50</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>INGLÊS II - INFO</strong><br/><span className="text-slate-400 text-xs">Professor/a efetivo/a</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>HISTÓRIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Daniel</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3"><strong>FÍSICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Elisângela</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">14:50</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>INGLÊS II - INFO</strong><br/><span className="text-slate-400 text-xs">Professor/a efetivo/a</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>HISTÓRIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Daniel</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3"><strong>FÍSICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Elisângela</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">16:00</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>ARTES - INFO</strong><br/><span className="text-slate-400 text-xs">Daivdson</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>TÓPICOS I - INFORMÁTICA</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
+                        </tr>
+
+                        <tr className="hover:bg-slate-800/30 transition">
+                          <td className="p-3 border-r border-slate-800 font-mono text-slate-400">17:00</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>TÓPICOS I - INFORMÁTICA</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
+                        </tr>
+
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ABA: CALENDÁRIO */}
+            {aba === 'calendario' && (
+              <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div ref={calendarRef}></div>
+              </div>
+            )}
+
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
