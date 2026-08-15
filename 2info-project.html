@@ -39,22 +39,32 @@
     const { useState, useEffect, useRef } = React;
 
     // --- CONFIGURAÇÃO DO SUPABASE ---
-    const SUPABASE_URL = "https://jnkonklwmaseeylebhdt.supabase.co/rest/v1/"; 
+    const SUPABASE_URL = "https://jnkonklwmaseeylebhdt.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_lQ1jnvO5jio3YqNRNDUkuw_a33pg5s7"; 
-    const SENHA_REPRESENTANTE = "info2026"; // Senha dos representantes
+    const SENHA_REPRESENTANTE = "info2026"; 
 
-    const supabaseClient = (SUPABASE_KEY && !SUPABASE_KEY.includes("COLE_AQUI")) 
+    const supabaseClient = (SUPABASE_KEY && !SUPABASE_KEY.includes("SUA_CHAVE")) 
       ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
       : null;
 
     function App() {
       const [eventos, setEventos] = useState([]);
+      const [materiais, setMateriais] = useState([]);
       const [aba, setAba] = useState('dashboard');
       const [isEditor, setIsEditor] = useState(false);
       
+      // Formulário de Atividades
       const [titulo, setTitulo] = useState('');
+      const [descricao, setDescricao] = useState('');
       const [tipo, setTipo] = useState('prova');
       const [dataHora, setDataHora] = useState('');
+
+      // Formulário de Materiais PDF
+      const [nomeMaterial, setNomeMaterial] = useState('');
+      const [arquivoPDF, setArquivoPDF] = useState(null);
+      const [disciplina, setDisciplina] = useState('');
+      const [enviando, setEnviando] = useState(false);
+
       const calendarRef = useRef(null);
 
       // Carregar eventos do Banco de Dados
@@ -65,11 +75,14 @@
           if (data) {
             const formatados = data.map(item => ({
               id: String(item.id),
-              title: `[${item.tipo.toUpperCase()}] ${item.title}`,
+              title: `[${item.tipo ? item.tipo.toUpperCase() : 'EVENTO'}] ${item.title}`,
               start: item.start,
-              color: item.tipo === 'prova' ? '#dc2626' : item.tipo === 'dever' ? '#d97706' : '#2563eb',
+              color: item.tipo === 'prova' ? '#dc2626' : 
+                     item.tipo === 'dever' ? '#d97706' : 
+                     item.tipo === 'evento' ? '#8b5cf6' : '#2563eb',
               tipo: item.tipo,
-              nomeOriginal: item.title
+              nomeOriginal: item.title,
+              descricao: item.descricao || 'Sem descrição cadastrada.'
             }));
             setEventos(formatados);
           }
@@ -78,8 +91,22 @@
         }
       };
 
+      // Carregar materiais em PDF do Banco de Dados
+      const carregarMateriais = async () => {
+        if (!supabaseClient) return;
+        try {
+          const { data, error } = await supabaseClient.from('materiais').select('*');
+          if (data) {
+            setMateriais(data);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar materiais:", err);
+        }
+      };
+
       useEffect(() => {
         carregarEventos();
+        carregarMateriais();
       }, []);
 
       // Renderizar Calendário
@@ -118,12 +145,12 @@
         if (!titulo || !dataHora) return;
 
         if (!supabaseClient) {
-          alert("A chave Publishable do Supabase não foi configurada no index.html!");
+          alert("A chave do Supabase não foi configurada!");
           return;
         }
 
         const { error } = await supabaseClient.from('provas').insert([
-          { title: titulo, tipo: tipo, start: dataHora }
+          { title: titulo, tipo: tipo, start: dataHora, descricao: descricao }
         ]);
 
         if (error) {
@@ -131,6 +158,7 @@
         } else {
           alert("Evento publicado para toda a turma com sucesso!");
           setTitulo('');
+          setDescricao('');
           setDataHora('');
           carregarEventos();
         }
@@ -146,6 +174,68 @@
           carregarEventos();
         } else {
           alert("Erro ao excluir item.");
+        }
+      };
+
+      // Upload de PDF para o Supabase Storage
+      const publicarMaterial = async (e) => {
+        e.preventDefault();
+        if (!nomeMaterial || !arquivoPDF) {
+          alert("Por favor, selecione um arquivo e preencha o nome do material.");
+          return;
+        }
+
+        if (!supabaseClient) return;
+
+        try {
+          setEnviando(true);
+
+          const extensao = arquivoPDF.name.split('.').pop();
+          const nomeArquivoUnico = `${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
+
+          const { data: storageData, error: storageError } = await supabaseClient
+            .storage
+            .from('MATERIAIS_PDF')
+            .upload(nomeArquivoUnico, arquivoPDF);
+
+          if (storageError) throw storageError;
+
+          const { data: publicUrlData } = supabaseClient
+            .storage
+            .from('MATERIAIS_PDF')
+            .getPublicUrl(nomeArquivoUnico);
+
+          const publicUrl = publicUrlData.publicUrl;
+
+          const { error: dbError } = await supabaseClient.from('materiais').insert([
+            { nome: nomeMaterial, url: publicUrl, disciplina: disciplina || 'Geral' }
+          ]);
+
+          if (dbError) throw dbError;
+
+          alert("PDF enviado e anexado com sucesso!");
+          setNomeMaterial('');
+          setDisciplina('');
+          setArquivoPDF(null);
+          carregarMateriais();
+
+        } catch (error) {
+          alert("Erro ao enviar o arquivo: " + error.message);
+        } finally {
+          setEnviando(false);
+        }
+      };
+
+      // Deletar PDF
+      const deletarMaterial = async (id) => {
+        if (!confirm("Tem certeza que deseja excluir este arquivo?")) return;
+        if (!supabaseClient) return;
+
+        const { error } = await supabaseClient.from('materiais').delete().eq('id', id);
+        if (!error) {
+          carregarMateriais();
+        } else {
+          alert("Erro ao excluir arquivo.");
         }
       };
 
@@ -180,6 +270,14 @@
                     aba === 'grade' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800'
                   }`}>
                   📊 Grade Horária
+                </button>
+
+                <button 
+                  onClick={() => setAba('materiais')}
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${
+                    aba === 'materiais' ? 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800'
+                  }`}>
+                  📄 Materiais & PDFs
                 </button>
                 
                 <button 
@@ -245,6 +343,17 @@
                         </div>
 
                         <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Descrição / Instruções</label>
+                          <textarea 
+                            rows="3"
+                            placeholder="Ex: Estudar os capítulos 3 e 4. Trazer calculadora..." 
+                            value={descricao}
+                            onChange={(e) => setDescricao(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none"
+                          />
+                        </div>
+
+                        <div>
                           <label className="text-xs font-medium text-slate-400 block mb-1">Categoria</label>
                           <select 
                             value={tipo}
@@ -252,6 +361,7 @@
                             className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
                             <option value="prova">Prova</option>
                             <option value="dever">Entrega de Trabalho</option>
+                            <option value="evento">Evento</option>
                             <option value="estudo">Aviso Importante</option>
                           </select>
                         </div>
@@ -294,30 +404,154 @@
                     {eventos.length === 0 ? (
                       <p className="text-slate-500 text-sm py-8 text-center">Nenhum evento registrado no momento.</p>
                     ) : (
-                      <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+                      <div className="space-y-4 max-h-[480px] overflow-y-auto pr-2">
                         {eventos.map((item) => (
-                          <div key={item.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 flex justify-between items-center hover:border-slate-600 transition">
-                            <div>
-                              <h4 className="font-semibold text-slate-200">{item.nomeOriginal || item.title}</h4>
-                              <span className="text-xs text-slate-400">
-                                Data: {new Date(item.start).toLocaleString('pt-BR')}
-                              </span>
+                          <div key={item.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold text-slate-200">{item.nomeOriginal || item.title}</h4>
+                                <span className="text-xs text-slate-400 block mt-0.5">
+                                  📅 Data: {new Date(item.start).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                  item.tipo === 'prova' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                  item.tipo === 'dever' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                  item.tipo === 'evento' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                                  'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                }`}>
+                                  {(item.tipo || 'item').toUpperCase()}
+                                </span>
+                                
+                                {isEditor && (
+                                  <button 
+                                    onClick={() => deletarEvento(item.id)}
+                                    className="text-slate-500 hover:text-red-400 p-1 transition"
+                                    title="Excluir Item">
+                                    🗑️
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                                item.tipo === 'prova' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                item.tipo === 'dever' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                              }`}>
-                                {(item.tipo || 'item').toUpperCase()}
+
+                            {item.descricao && (
+                              <div className="p-3 bg-slate-900/70 rounded-lg border border-slate-800 text-xs text-slate-300">
+                                <span className="font-semibold text-slate-400 block mb-0.5">📌 O que fazer:</span>
+                                {item.descricao}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* ABA: MATERIAIS & PDFS */}
+            {aba === 'materiais' && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <header>
+                  <h2 className="text-2xl font-bold text-white">Anexos & Materiais de Estudo</h2>
+                  <p className="text-slate-400 text-sm">Downloads de PDFs, apostilas e orientações de trabalhos.</p>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {isEditor ? (
+                    <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl relative">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                        📎 Anexar PDF / Material
+                      </h3>
+                      <form onSubmit={publicarMaterial} className="space-y-4">
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Nome do Arquivo/Material</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: Roteiro do Trabalho de Web II" 
+                            value={nomeMaterial}
+                            onChange={(e) => setNomeMaterial(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Disciplina</label>
+                          <input 
+                            type="text" 
+                            placeholder="Ex: Desenvolvimento Web II" 
+                            value={disciplina}
+                            onChange={(e) => setDisciplina(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-medium text-slate-400 block mb-1">Selecione o PDF no Computador</label>
+                          <input 
+                            type="file" 
+                            accept=".pdf"
+                            onChange={(e) => setArquivoPDF(e.target.files[0])}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          disabled={enviando}
+                          className={`w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium p-3 rounded-xl shadow-lg shadow-emerald-900/30 transition ${
+                            enviando ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}>
+                          {enviando ? "Enviando PDF..." : "Anexar Arquivo"}
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 mb-3 text-xl">
+                        📁
+                      </div>
+                      <h3 className="font-semibold text-slate-200 mb-1">Área de Downloads</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Acesse abaixo os arquivos PDF disponibilizados para a turma.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+                      📚 Arquivos Disponíveis
+                    </h3>
+
+                    {materiais.length === 0 ? (
+                      <p className="text-slate-500 text-sm py-8 text-center">Nenhum PDF ou material anexado ainda.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {materiais.map((mat) => (
+                          <div key={mat.id} className="p-4 bg-slate-800/60 border border-slate-700/60 rounded-xl flex flex-col justify-between space-y-3">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                {mat.disciplina || 'Geral'}
                               </span>
-                              
+                              <h4 className="font-semibold text-white mt-2 leading-snug">{mat.nome}</h4>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                              <a 
+                                href={mat.url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition">
+                                📥 Abrir / Baixar PDF
+                              </a>
+
                               {isEditor && (
                                 <button 
-                                  onClick={() => deletarEvento(item.id)}
-                                  className="text-slate-500 hover:text-red-400 p-1 transition"
-                                  title="Excluir Item">
-                                  🗑️
+                                  onClick={() => deletarMaterial(mat.id)}
+                                  className="text-slate-500 hover:text-red-400 text-xs transition">
+                                  🗑️ Excluir
                                 </button>
                               )}
                             </div>
@@ -326,7 +560,6 @@
                       </div>
                     )}
                   </div>
-
                 </div>
               </div>
             )}
@@ -340,7 +573,7 @@
                     <p className="text-slate-400 text-sm">2º ano Téc. Informática - IF Goiano</p>
                   </div>
                   <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-3 py-1.5 rounded-full font-semibold">
-                    URÂNIA+
+                    INFO 2
                   </span>
                 </header>
 
@@ -359,6 +592,7 @@
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 text-slate-200">
+                        {/* MATUTINO */}
                         <tr className="hover:bg-slate-800/30 transition">
                           <td rowSpan="4" className="p-4 font-bold border-r border-slate-800 bg-slate-900/50 text-slate-400 text-center uppercase">
                             Matutino
@@ -367,7 +601,7 @@
                           <td className="p-3 border-r border-slate-800/50"><strong>ELETRÔNICA BÁSICA</strong><br/><span className="text-slate-400 text-xs">André Wild</span></td>
                           <td className="p-3 border-r border-slate-800/50"><strong>FILOSOFIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Flávio Oliveira</span></td>
                           <td className="p-3 border-r border-slate-800/50"><strong>SOCIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Maria Otavia</span></td>
-                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA E LITERATURA II - INFO</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
                           <td className="p-3"><strong>DESENVOLVIMENTO WEB II</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
                         </tr>
 
@@ -384,59 +618,59 @@
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">10:20</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>GEOGRAFIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Laise Cabral</span></td>
                           <td className="p-3 border-r border-slate-800/50"><strong>QUÍMICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Gustavo</span></td>
-                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA E LITERATURA II - INFO</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
                           <td className="p-3 border-r border-slate-800/50"><strong>Paradigma Orientação Objeto</strong><br/><span className="text-slate-400 text-xs">Renato</span></td>
                           <td className="p-3"><strong>BIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Karine Dias</span></td>
                         </tr>
 
                         <tr className="hover:bg-slate-800/30 transition">
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">11:20</td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>QUÍMICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Gustavo</span></td>
                           <td className="p-3 border-r border-slate-800/50"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
-                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA II</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
+                          <td className="p-3 border-r border-slate-800/50"><strong>LÍNGUA PORTUGUESA E LITERATURA II - INFO</strong><br/><span className="text-slate-400 text-xs">Mariana Rodrigues</span></td>
                           <td className="p-3"><strong>BIOLOGIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Karine Dias</span></td>
                         </tr>
 
-                        <tr className="border-t-2 border-slate-700 hover:bg-slate-800/30 transition">
+                        {/* VESPERTINO */}
+                        <tr className="hover:bg-slate-800/30 transition border-t-2 border-slate-700">
                           <td rowSpan="4" className="p-4 font-bold border-r border-slate-800 bg-slate-900/50 text-slate-400 text-center uppercase">
                             Vespertino
                           </td>
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">13:50</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>INGLÊS II - INFO</strong><br/><span className="text-slate-400 text-xs">Professor/a efetivo/a</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>HISTÓRIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Daniel</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3"><strong>FÍSICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Elisângela</span></td>
                         </tr>
 
                         <tr className="hover:bg-slate-800/30 transition">
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">14:50</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>INGLÊS II - INFO</strong><br/><span className="text-slate-400 text-xs">Professor/a efetivo/a</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>HISTÓRIA II - INFO</strong><br/><span className="text-slate-400 text-xs">Daniel</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3"><strong>FÍSICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Elisângela</span></td>
                         </tr>
 
                         <tr className="hover:bg-slate-800/30 transition">
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">16:00</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>ARTES - INFO</strong><br/><span className="text-slate-400 text-xs">Daivdson</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>TÓPICOS I - INFORMÁTICA</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
                         </tr>
 
                         <tr className="hover:bg-slate-800/30 transition">
                           <td className="p-3 border-r border-slate-800 font-mono text-slate-400">17:00</td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3 border-r border-slate-800/50"><strong>TÓPICOS I - INFORMÁTICA</strong><br/><span className="text-slate-400 text-xs">Franciele INFO</span></td>
-                          <td className="p-3 border-r border-slate-800/50 text-slate-600">—</td>
+                          <td className="p-3 border-r border-slate-800/50 text-slate-600">-</td>
                           <td className="p-3"><strong>MATEMÁTICA II - INFO</strong><br/><span className="text-slate-400 text-xs">Pedro Cortes</span></td>
                         </tr>
-
                       </tbody>
                     </table>
                   </div>
@@ -446,8 +680,15 @@
 
             {/* ABA: CALENDÁRIO */}
             {aba === 'calendario' && (
-              <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <div ref={calendarRef}></div>
+              <div className="max-w-5xl mx-auto space-y-6">
+                <header>
+                  <h2 className="text-2xl font-bold text-white">Calendário Acadêmico</h2>
+                  <p className="text-slate-400 text-sm">Visualização em formato de calendário das avaliações e compromissos.</p>
+                </header>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                  <div ref={calendarRef}></div>
+                </div>
               </div>
             )}
 
