@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Álbum Ilustrado de Zoologia - Os Invertebrados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-page: #e8f4f8;
+      --album-cover: #1b4d3e;
+      --album-accent: #2e7d32;
+      --album-gold: #ffb703;
+      --paper: #fefcf7;
+      --text-dark: #2c3e50;
+      --text-muted: #5a6b7c;
+      --card-border: #d3e2db;
+      --shadow: 0 10px 28px rgba(0,0,0,0.12);
+      --badge-bg: #e0f2fe;
+      --badge-text: #0369a1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: 'Nunito', sans-serif;
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 15px 40px;
+    }
+
+    /* HEADER */
+    header {
+      text-align: center;
+      max-width: 800px;
+      margin-bottom: 25px;
+    }
+
+    .album-badge {
+      display: inline-block;
+      background: var(--album-gold);
+      color: #3d2c00;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 4px 16px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 3px 8px rgba(255, 183, 3, 0.4);
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-family: 'Fredoka', sans-serif;
+      color: var(--album-cover);
+      font-size: 2.4rem;
+      line-height: 1.2;
+      margin-bottom: 8px;
+      text-shadow: 1px 1px 0px rgba(255,255,255,0.8);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    /* BARRA DE PROGRESSO DO ÁLBUM */
+    .progress-container {
+      width: 100%;
+      max-width: 600px;
+      background: #ffffff;
+      padding: 12px 20px;
+      border-radius: 50px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .progress-bar-bg {
+      flex: 1;
+      height: 14px;
+      background: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981, #059669);
+      border-radius: 10px;
+      transition: width 0.4s ease-out;
+    }
+
+    .progress-text {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      color: var(--album-cover);
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    /* NAVEGAÇÃO DE PÁGINAS */
+    .nav-wrapper {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 850px;
+      margin-bottom: 30px;
+    }
+
+    .page-btn {
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      color: var(--text-dark);
+      font-family: 'Fredoka', sans-serif;
+      font-size: 0.95rem;
+      padding: 8px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    }
+
+    .page-btn:hover {
+      border-color: var(--album-accent);
+      color: var(--album-accent);
+      transform: translateY(-2px);
+    }
+
+    .page-btn.active {
+      background: var(--album-cover);
+      border-color: var(--album-cover);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(27, 77, 62, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .page-btn .check-icon {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .page-btn.completed .check-icon {
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    /* CONTAINER DO ÁLBUM (LIVRO) */
+    .album-book {
+      width: 100%;
+      max-width: 720px;
+      background: var(--paper);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--card-border);
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .album-book::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, #2e7d32, #15803d, #047857);
+    }
+
+    .page-content {
+      display: none;
+      animation: fadeIn 0.35s ease-in-out;
+    }
+
+    .page-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ESTILOS DA PÁGINA DA CAPA */
+    .cover-container {
+      text-align: center;
+      padding: 20px 10px;
+    }
+
+    .cover-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 2.2rem;
+      color: var(--album-cover);
+      margin-bottom: 6px;
+    }
+
+    .cover-turma {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--album-accent);
+      margin-bottom: 30px;
+      background: #e8f5e9;
+      display: inline-block;
+      padding: 6px 20px;
+      border-radius: 20px;
+    }
+
+    .cover-members-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 450px;
+      margin: 0 auto;
+      text-align: left;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    .cover-members-card h3 {
+      font-family: 'Fredoka', sans-serif;
+      color: var(--album-cover);
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .cover-members-list {
+      list-style: none;
+    }
+
+    .cover-members-list li {
+      font-weight: 700;
+      color: var(--text-dark);
+      padding: 10px 12px;
+      border-bottom: 1px dashed #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .cover-members-list li:last-child {
+      border-bottom: none;
+    }
+
+    .cover-members-list li::before {
+      content: '🎓';
+      font-size: 1.1rem;
+    }
+
+    /* CABEÇALHO DA PÁGINA DO ÁLBUM */
+    .page-header-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px dashed #e2e8f0;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+
+    .phylum-tag {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 4px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sticker-number {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .animal-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 2rem;
+      color: var(--album-cover);
+      margin-bottom: 4px;
+    }
+
+    .scientific-name {
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    /* ESPAÇO DA FIGURINHA */
+    .sticker-slot-container {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      margin-bottom: 25px;
+    }
+
+    .sticker-slot {
+      width: 100%;
+      height: 100%;
+      background-color: #f8fafc;
+      border: 3px dashed #cbd5e1;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+
+    .sticker-slot:hover {
+      border-color: var(--album-accent);
+      background-color: #f0fdf4;
+      transform: scale(1.01);
+    }
+
+    .slot-placeholder-icon {
+      font-size: 2.8rem;
+      margin-bottom: 10px;
+      opacity: 0.7;
+    }
+
+    .slot-placeholder-text {
+      font-family: 'Fredoka', sans-serif;
+      color: #64748b;
+      font-size: 1.1rem;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .slot-placeholder-hint {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* FIGURINHA COLADA */
+    .sticker-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      border-radius: 14px;
+    }
+
+    /* AJUSTE: Removido o background preto para não aparecer o bloco escuro em falhas de carregamento */
+    .sticker-slot.pasted {
+      border: 4px solid #ffffff;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+      background: #f8fafc;
+    }
+
+    .sticker-slot.pasted .slot-placeholder-icon,
+    .sticker-slot.pasted .slot-placeholder-text,
+    .sticker-slot.pasted .slot-placeholder-hint {
+      display: none;
+    }
+
+    .sticker-slot.pasted .sticker-img {
+      display: block;
+      animation: stickerSnap 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes stickerSnap {
+      0% {
+        opacity: 0;
+        transform: scale(1.15) rotate(-3deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    /* SELO DE FIGURINHA COLADA */
+    .pasted-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: #10b981;
+      color: white;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 5;
+    }
+
+    .sticker-slot.pasted + .pasted-badge {
+      display: block;
+    }
+
+    /* FICHA TÉCNICA E CURIOSIDADES */
+    .info-section {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .section-subtitle {
+      font-family: 'Fredoka', sans-serif;
+      color: var(--album-cover);
+      font-size: 1.15rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .info-box {
+      background: #ffffff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border-left: 4px solid var(--album-accent);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .info-box strong {
+      color: var(--text-dark);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-box p {
+      color: #475569;
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    /* CARD DE CURIOSIDADE */
+    .fact-card {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border-radius: 12px;
+      padding: 15px 18px;
+      border-left: 5px solid #f59e0b;
+      color: #78350f;
+      position: relative;
+    }
+
+    .fact-card strong {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1rem;
+      display: block;
+      margin-bottom: 4px;
+      color: #92400e;
+    }
+
+    .fact-card p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      font-weight: 600;
+    }
+
+    /* PÁGINA FINAL DE RANKING / CURIOSIDADES */
+    .top10-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .top10-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 16px 12px 50px;
+      position: relative;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: transform 0.2s;
+    }
+
+    .top10-item:hover {
+      transform: translateX(4px);
+      border-color: var(--album-accent);
+    }
+
+    .top10-num {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      background: var(--album-cover);
+      color: white;
+      font-family: 'Fredoka', sans-serif;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    .top10-title {
+      font-weight: 700;
+      color: var(--album-cover);
+      font-size: 1rem;
+      margin-bottom: 2px;
+    }
+
+    .top10-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* BOTÃO DE REINICIAR / COLAR TUDO */
+    .actions-bar {
+      margin-top: 30px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .action-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: #f1f5f9;
+      color: var(--text-dark);
+    }
+
+    /* RESPONSIVIDADE */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.8rem; }
+      .album-book { padding: 20px 15px; }
+      .sticker-slot-container { height: 240px; }
+      .page-btn { padding: 6px 12px; font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="album-badge">Coleção Zoologia</span>
+    <h1>Álbum de Figurinhas: Invertebrados</h1>
+    <p>Clique no espaço em branco de cada página para colar a figurinha e descobrir curiosidades incríveis!</p>
+  </header>
+
+  <!-- BARRA DE PROGRESSO DO ÁLBUM -->
+  <div class="progress-container">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    <div class="progress-text" id="progressText">0 de 8 figurinhas (0%)</div>
+  </div>
+
+  <!-- NAVEGAÇÃO DE PÁGINAS -->
+  <nav class="nav-wrapper" id="navWrapper"></nav>
+
+  <!-- LIVRO DO ÁLBUM -->
+  <main class="album-book" id="albumBook"></main>
+
+  <div class="actions-bar">
+    <button class="action-btn" onclick="pasteAllStickers()">✨ Colar Todas</button>
+    <button class="action-btn" onclick="resetAlbum()">🔄 Recomeçar Álbum</button>
+  </div>
+
+  <script>
+    // BASE URL DO SUPABASE (Substitua 'SEU-PROJETO' e 'album-imagens' caso o seu bucket tenha outro nome)
+    const SUPABASE_STORAGE_URL = "https://jbipsqhpunkpvsbxrtir.supabase.co";
+
+   const albumData = [
+  {
+    page: 1,
+    phylum: "Poríferos",
+    name: "Esponja-do-mar",
+    scientific: "Spongia officinalis",
+    habitat: "Aquático (maioria marinha, fixas no substrato)",
+    features: "Não possuem tecidos ou órgãos verdadeiros. O corpo é cheio de poros por onde a água entra trazendo oxigênio e partículas de alimento.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "As esponjas são verdadeiras 'máquinas de filtragem'! Uma única esponja-do-mar do tamanho de um copo consegue filtrar mais de 20 LITROS de água por dia. Além disso, elas não têm cérebro, coração ou sangue!",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/esponja.jpg"
+  },
+  {
+    page: 2,
+    phylum: "Cnidários",
+    name: "Água-viva",
+    scientific: "Aurelia aurita",
+    habitat: "Oceano aberto e zonas costeiras",
+    features: "Possuem corpo gelatinoso (95% água) e tentáculos repletos de células chamadas cnidócitos, que disparam veneno para caçar e se defender.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "Existem espécies de águas-vivas que brilham no escuro (bioluminescência)! Uma espécie em particular (*Turritopsis dohrnii*) é considerada 'biologicamente imortal', pois consegue reverter seu ciclo de vida de adulta para jovem quando fica doente ou idosa.",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/aguaviva.jpg"
+  },
+  {
+    page: 3,
+    phylum: "Platelmintos",
+    name: "Planária",
+    scientific: "Dugesia tigrina",
+    habitat: "Lagos, riachos e locais úmidos",
+    features: "Vermes de corpo achatado com simetria bilateral. Possuem ocelos (pontos pretos na cabeça) que detectam a direção da luz.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "O poder de regeneração da planária é inacreditável! Se você cortar uma planária em 200 pedaços pequenos, CADA PEDAÇO vai regenerar e se transformar em uma nova planária completa em poucos dias!",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/planaria.jpg"
+  },
+  {
+    page: 4,
+    phylum: "Nematelmintos",
+    name: "Lombriga",
+    scientific: "Ascaris lumbricoides",
+    habitat: "Parasita do sistema digestório humano e de outros animais",
+    features: "Vermes de corpo cilíndrico, alongado e com pontas afuniladas. Possuem sistema digestório completo (com boca e ânus).",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "Uma única fêmea de lombriga consegue botar até 200.000 ovos POR DIA dentro do intestino do hospedeiro! Por isso, a higiene pessoal e o saneamento básico são fundamentais para prevenir o contágio.",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/lombriga.jpg"
+  },
+  {
+    page: 5,
+    phylum: "Anelídeos",
+    name: "Minhoca",
+    scientific: "Lumbricus terrestris",
+    habitat: "Solos úmidos e ricos em matéria orgânica",
+    features: "Corpo dividido em vários anéis (segmentos). Respiram pela pele (respiração cutânea) e ajudam na aeração do solo.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "As minhocas são os 'engenheiros do solo'! Elas cavam túneis que deixam a terra fofa para as raízes das plantas respirarem, e seu excremento (o húmus) é um dos adubos mais férteis do planeta.",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/minhoca.jpg"
+  },
+  {
+    page: 6,
+    phylum: "Moluscos",
+    name: "Polvo",
+    scientific: "Octopus vulgaris",
+    habitat: "Ambientes marinhos e recifes de coral",
+    features: "Possui corpo mole sem concha, 8 braços cheios de ventosas e inteligência surpreendente com um sistema nervoso muito desenvolvido.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "O polvo tem 3 CORAÇÕES e SANGUE AZUL (à base de cobre)! Além de conseguir mudar de cor e textura em menos de 1 segundo para se camuflar, 2/3 dos seus neurônios ficam nos próprios braços, permitindo que cada braço 'pense' por conta própria!",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/polvo.jpg"
+  },
+  {
+    page: 7,
+    phylum: "Artrópodes",
+    name: "Borboleta-monarca",
+    scientific: "Danaus plexippus",
+    habitat: "Campos, florestas e jardins da América do Norte",
+    features: "Possui exoesqueleto de quitina, pernas articuladas e asas com escamas coloridas. Passa por metamorfose completa (ovo → lagarta → crisálida → adulto).",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "As borboletas-monarca realizam uma das migrações mais espetaculares do reino animal: elas voam mais de 4.000 KM do Canadá até o México todos os anos! E o mais impressionante: elas sentem o gosto dos alimentos usando as PATAS!",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/borboleta.jpg"
+  },
+  {
+    page: 8,
+    phylum: "Equinodermos",
+    name: "Estrela-do-mar",
+    scientific: "Asterias rubens",
+    habitat: "Fundo dos oceanos e zonas intertidais",
+    features: "Possui simetria radial (geralmente 5 braços), espinhos na pele e um exclusivo sistema hidroambulacral movido a água para locomoção.",
+    factTitle: "💡 Curiosidade Incrível:",
+    fact: "Para comer ostras e mariscos, a estrela-do-mar coloca o seu próprio ESTÔMAGO PARA FORA do corpo através da boca, abraça a presa, projeta sucos digestivos e depois engole tudo de volta! E ela não possui sangue: usa água do mar filtrada em suas veias!",
+    img: "https://jbipsqhpunkpvsbxrtir.supabase.co/storage/v1/object/public/album-imagens/estrela.jpg"
+  }
+];
+
+    const top10Facts = [
+      { title: "🧽 Esponja: Remédios do Oceano", desc: "Esponjas-do-mar produzem substâncias químicas defensivas únicas que hoje estão sendo usadas pela ciência para criar novos medicamentos contra o câncer e infecções bacterianas!" },
+      { title: "🧽 Esponja: Bater no liquidificador?", desc: "Se você passar uma esponja viva por uma peneira e separar todas as suas células, em poucas horas elas se procuram no fundo do aquário e se reúnem para formar a mesma esponja de novo!" },
+      { title: "🪼 Água-viva: Mais antigas que dinossauros", desc: "Elas nadam pelos oceanos há mais de 500 milhões de anos! Elas já existiam muito antes dos dinossauros e sobreviveram a todas as 5 grandes extinções em massa da Terra." },
+      { title: "🪱 Planária: A Memória Sem Cérebro", desc: "Em experimentos, se uma planária aprende a passar por um labirinto, é cortada ao meio e regenera a cabeça, a NOVA cabeça ainda lembra como resolver o labirinto!" },
+      { title: "🪱 Lombriga: Camada 'Inquebrável'", desc: "A cutícula externa da lombriga é tão resistente que ela consegue viver imersa nos ácidos estomacais e digestivos ultra agressivos do nosso corpo sem ser corroída!" },
+      { title: "🪱 Minhoca: Cinco Pares de 'Corações'", desc: "As minhocas não têm apenas 1 coração como nós: elas possuem 5 pares de arcos aórticos que funcionam como 10 corações bombeando sangue pelo corpo todo!" },
+      { title: "🐙 Polvo: Sabor pelas Ventosas", desc: "Além de prender coisas, as ventosas dos braços do polvo possuem receptores químicos que funcionam como 'papilas gustativas'. Ele sente o gosto de tudo o que toca!" },
+      { title: "🐙 Polvo: Mestre do Escapismo", desc: "Como não possuem nenhum osso, o único limite para um polvo se espremer é o tamanho do seu bico rígido. Um polvo gigante consegue passar por um buraco do tamanho de uma moeda!" },
+      { title: "🦋 Borboleta-monarca: Bússola magnética", desc: "A borboleta-monarca possui bússolas magnéticas biológicas no cérebro e nos olhos, permitindo que ela se oriente pelo campo magnético da Terra para viajar 4.000 km sem se perder!" },
+      { title: "⭐ Estrela-do-mar: Olhos na ponta dos braços", desc: "Elas não têm cabeça, mas possuem um pequeno 'olho' (ponto ocular) na ponta de CADA um dos braços, que consegue detectar sombras, luz e escuridão no fundo do mar!" }
+    ];
+
+    // ESTADO DO ÁLBUM (Salvo no navegador)
+    let pastedStickers = JSON.parse(localStorage.getItem('album_zoologia_pasted')) || {};
+
+    // ÁUDIO DE FIGURINHA COLANDO
+    function playSnapSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(90, audioCtx.currentTime + 0.09);
+
+        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.09);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.09);
+      } catch(e) {}
+    }
+
+    function updateProgress() {
+      const total = albumData.length;
+      const count = Object.keys(pastedStickers).length;
+      const percentage = Math.round((count / total) * 100);
+
+      document.getElementById('progressBar').style.width = `${percentage}%`;
+      document.getElementById('progressText').innerText = `${count} de ${total} figurinhas (${percentage}%)`;
+
+      albumData.forEach(item => {
+        const btn = document.getElementById(`nav-btn-${item.page}`);
+        if (btn) {
+          if (pastedStickers[item.page]) {
+            btn.classList.add('completed');
+          } else {
+            btn.classList.remove('completed');
+          }
+        }
+      });
+    }
+
+    function initAlbum() {
+      const nav = document.getElementById('navWrapper');
+      const book = document.getElementById('albumBook');
+
+      nav.innerHTML = '';
+      book.innerHTML = '';
+
+      // Aba 0: Capa
+      const btnCover = document.createElement('button');
+      btnCover.className = 'page-btn active';
+      btnCover.id = 'nav-btn-cover';
+      btnCover.innerHTML = `📘 Capa`;
+      btnCover.onclick = () => switchPage('cover');
+      nav.appendChild(btnCover);
+
+      const coverDiv = document.createElement('div');
+      coverDiv.className = 'page-content active';
+      coverDiv.id = 'page-cover';
+      coverDiv.innerHTML = `
+        <div class="cover-container">
+          <div class="page-header-strip" style="justify-content: center; margin-bottom: 25px;">
+            <span class="phylum-tag">Apresentação do Trabalho</span>
+          </div>
+          <h2 class="cover-title">Trabalho de Biologia</h2>
+          <div class="cover-turma">Turma: 2° Informática</div>
+
+          <div class="cover-members-card">
+            <h3>Integrantes do Grupo</h3>
+            <ul class="cover-members-list">
+              <li>Abner Martins</li>
+              <li>Yuri Moreira Nolasco</li>
+              <li>Pedro Henrique Brandão</li>
+              <li>João Felipe</li>
+            </ul>
+          </div>
+        </div>
+      `;
+      book.appendChild(coverDiv);
+
+      albumData.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn';
+        btn.id = `nav-btn-${item.page}`;
+        btn.innerHTML = `<span class="check-icon"></span> Pág. ${item.page}`;
+        btn.onclick = () => switchPage(item.page);
+        nav.appendChild(btn);
+
+        const isPasted = !!pastedStickers[item.page];
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page-content';
+        pageDiv.id = `page-${item.page}`;
+        pageDiv.innerHTML = `
+          <div class="page-header-strip">
+            <span class="phylum-tag">Filo: ${item.phylum}</span>
+            <span class="sticker-number">Figurinha #${item.page}</span>
+          </div>
+
+          <h2 class="animal-title">${item.name}</h2>
+          <span class="scientific-name">Nome científico: ${item.scientific}</span>
+
+          <div class="sticker-slot-container">
+            <div class="sticker-slot ${isPasted ? 'pasted' : ''}" onclick="pasteSticker(${item.page}, this)">
+              <div class="slot-placeholder-icon">🐾</div>
+              <div class="slot-placeholder-text">Clique aqui para colar a figurinha de ${item.name}!</div>
+              <img src="${item.img}" alt="${item.name}" class="sticker-img">
+            </div>
+            <div class="pasted-badge">✓ FIGURINHA COLADA</div>
+          </div>
+
+          <div class="info-section">
+            <h3 class="section-subtitle">📋 Ficha Biológica</h3>
+            <div class="info-grid">
+              <div class="info-box">
+                <strong>Habitat Natural:</strong>
+                <p>${item.habitat}</p>
+              </div>
+              <div class="info-box">
+                <strong>Características Principais:</strong>
+                <p>${item.features}</p>
+              </div>
+            </div>
+
+            <div class="fact-card">
+              <strong>${item.factTitle}</strong>
+              <p>${item.fact}</p>
+            </div>
+          </div>
+        `;
+        book.appendChild(pageDiv);
+      });
+
+      // Página 9
+      const btn9 = document.createElement('button');
+      btn9.className = 'page-btn';
+      btn9.id = 'nav-btn-9';
+      btn9.innerHTML = `⭐ Pág. 9 Extra`;
+      btn9.onclick = () => switchPage(9);
+      nav.appendChild(btn9);
+
+      const page9Div = document.createElement('div');
+      page9Div.className = 'page-content';
+      page9Div.id = 'page-9';
+
+      let factsHTML = top10Facts.map((f, i) => `
+        <div class="top10-item">
+          <div class="top10-num">${i + 1}</div>
+          <div class="top10-title">${f.title}</div>
+          <div class="top10-desc">${f.desc}</div>
+        </div>
+      `).join('');
+
+      page9Div.innerHTML = `
+        <div class="page-header-strip">
+          <span class="phylum-tag" style="background:#fef3c7; color:#b45309;">Seção Bônus</span>
+          <span class="sticker-number">Fatos Secretos</span>
+        </div>
+        <h2 class="animal-title">Curiosidades Secretas dos Nossos Animais</h2>
+        <span class="scientific-name">Segredos e superpoderes impressionantes dos 8 animais apresentados!</span>
+        
+        <div class="top10-container">
+          ${factsHTML}
+        </div>
+      `;
+      book.appendChild(page9Div);
+
+      updateProgress();
+    }
+
+    function switchPage(pageNum) {
+      document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.page-btn').forEach(b => b.classList.remove('active'));
+
+      document.getElementById(`page-${pageNum}`).classList.add('active');
+      document.getElementById(`nav-btn-${pageNum}`).classList.add('active');
+    }
+
+    function pasteSticker(pageNumber, slotElement) {
+      if (!pastedStickers[pageNumber]) {
+        pastedStickers[pageNumber] = true;
+        localStorage.setItem('album_zoologia_pasted', JSON.stringify(pastedStickers));
+        slotElement.classList.add('pasted');
+        playSnapSound();
+        updateProgress();
+      }
+    }
+
+    function pasteAllStickers() {
+      albumData.forEach(item => {
+        pastedStickers[item.page] = true;
+      });
+      localStorage.setItem('album_zoologia_pasted', JSON.stringify(pastedStickers));
+      initAlbum();
+      switchPage(1);
+    }
+
+    function resetAlbum() {
+      if (confirm('Deseja descolar todas as figurinhas para começar de novo?')) {
+        pastedStickers = {};
+        localStorage.removeItem('album_zoologia_pasted');
+        initAlbum();
+        switchPage('cover');
+      }
+    }
+
+    window.onload = initAlbum;
+  </script>
+</body>
+</html>
